@@ -66,7 +66,34 @@ export const cloudflareAccountProvider = (
     listOrgApiKeys: () => Effect.succeed({ apiKeys: [] }),
     createOrgApiKey: () => forbiddenWrite,
     revokeOrgApiKey: () => forbiddenWrite,
-    listMembers: () => Effect.succeed({ members: [] }),
+    // Access owns the roster, so the app cannot enumerate it. The list still
+    // must carry the CURRENT principal: the console derives "am I an admin"
+    // from the `isCurrentUser` row (see react `useIsTenantAdmin`), and an
+    // empty list hides every admin-only surface — including the Workspace
+    // owner option when saving a connection — from people the server itself
+    // already treats as admins via `ADMIN_EMAILS`.
+    listMembers: (headers) =>
+      principalFrom(headers).pipe(
+        Effect.map((principal) =>
+          principal
+            ? {
+                members: [
+                  {
+                    id: principal.accountId,
+                    userId: principal.accountId,
+                    email: principal.email,
+                    name: principal.name,
+                    avatarUrl: principal.avatarUrl,
+                    role: principal.orgRole ?? "member",
+                    status: "active",
+                    lastActiveAt: null,
+                    isCurrentUser: true,
+                  },
+                ],
+              }
+            : { members: [] },
+        ),
+      ),
     listRoles: () => Effect.succeed({ roles: [] }),
     inviteMember: () => forbiddenWrite,
     removeMember: () => forbiddenWrite,
