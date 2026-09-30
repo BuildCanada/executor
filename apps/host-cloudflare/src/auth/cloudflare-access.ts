@@ -52,6 +52,13 @@ export const principalFromAccessClaims = (
   };
 };
 
+/** Split a comma-separated ACCESS_AUD into its application audience tags. */
+export const accessAudiences = (value: string): string[] =>
+  value
+    .split(",")
+    .map((aud) => aud.trim())
+    .filter((aud) => aud.length > 0);
+
 /**
  * Resolve a request to its verified `Principal`, or `null` when the Access
  * assertion is missing/invalid. The single source of truth for "who is this
@@ -84,6 +91,10 @@ export const makeAccessVerifier = (config: CloudflareConfig) => {
     orgRole: "admin",
   };
 
+  // ACCESS_AUD may list several Access applications (comma-separated), e.g.
+  // the host-wide app plus a path-scoped app for one toolkit's service token.
+  const audience = accessAudiences(config.accessAud);
+
   const verify = (request: Request): Effect.Effect<Principal | null> =>
     Effect.gen(function* () {
       if (config.enableDevAuth) return devPrincipal;
@@ -92,7 +103,7 @@ export const makeAccessVerifier = (config: CloudflareConfig) => {
       if (!token) return null;
 
       const verified = yield* Effect.tryPromise({
-        try: () => jwtVerify(token, jwks, { issuer, audience: config.accessAud }),
+        try: () => jwtVerify(token, jwks, { issuer, audience }),
         catch: () => "invalid access assertion",
       }).pipe(Effect.orElseSucceed(() => null));
       if (!verified) return null;

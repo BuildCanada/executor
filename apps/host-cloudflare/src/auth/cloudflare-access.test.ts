@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { orgWriteAccessForPrincipal } from "@executor-js/host-mcp";
 
 import type { CloudflareConfig } from "../config";
-import { principalFromAccessClaims } from "./cloudflare-access";
+import { accessAudiences, principalFromAccessClaims } from "./cloudflare-access";
 
 const config: CloudflareConfig = {
   accessTeamDomain: "team.cloudflareaccess.com",
@@ -57,5 +57,13 @@ describe("principalFromAccessClaims", () => {
     expect(p.orgRoleModel).toBe("organization");
     expect(p.orgRole).toBe("member");
     expect(orgWriteAccessForPrincipal(p)).toBe("denied");
+  });
+});
+
+describe("accessAudiences", () => {
+  it("splits a comma-separated ACCESS_AUD and drops blanks", () => {
+    expect(accessAudiences("aud-a")).toEqual(["aud-a"]);
+    expect(accessAudiences(" aud-a , aud-b ,")).toEqual(["aud-a", "aud-b"]);
+    expect(accessAudiences("")).toEqual([]);
   });
 });
